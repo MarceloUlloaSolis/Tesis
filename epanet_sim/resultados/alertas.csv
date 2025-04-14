@@ -1,0 +1,5 @@
+tipo,elemento,delta,timestamp
+presion,J12,10.01,2025-01-05 16:00:00
+caudal,P12,1.0,2025-01-05 16:00:00
+presion,J11,10.0,2025-01-07 23:45:00
+presion,J13,10.0,2025-01-07 23:45:00

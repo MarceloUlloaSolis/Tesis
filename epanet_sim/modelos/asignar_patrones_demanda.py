@@ -2,49 +2,43 @@ import wntr
 import numpy as np
 from wntr.network.io import write_inpfile
 
-# Cargar el modelo base
-wn = wntr.network.WaterNetworkModel("epanet_sim/modelos/red_apr_estructurada.inp")
+# Cargar modelo base
+inp_path = 'epanet_sim/modelos/red_apr_estructurada.inp'
+wn = wntr.network.WaterNetworkModel(inp_path)
 
-# Crear patrón base
-patron_base = [
-    0.05, 0.05, 0.05, 0.05, 0.05,
-    0.25, 0.25,
-    0.4, 0.4, 0.4,
-    0.3, 0.3,
-    0.7, 0.7,
-    0.3, 0.3,
-    0.7, 0.7, 0.7,
-    0.15, 0.15, 0.15
-]
-while len(patron_base) < 24:
-    patron_base.append(0.05)
+# Crear patrón de 96 pasos (cada 15 minutos)
+patron_base = []
+for t in range(96):
+    hora = t * 15 / 60
+    if 6 <= hora < 9:
+        patron_base.append(1.5)
+    elif 12 <= hora < 14:
+        patron_base.append(1.2)
+    elif 20 <= hora < 23:
+        patron_base.append(1.4)
+    elif 0 <= hora < 5:
+        patron_base.append(0.3)
+    else:
+        patron_base.append(0.8)
 
-# Parámetros de diseño
+# Agregar el patrón al modelo
+nombre_patron = 'PATRON_HORARIO'
+wn.add_pattern(nombre_patron, patron_base)
+
+# Parámetros de consumo
+lts_dia = 125
 habitantes = 4
-litros_dia = 125 * habitantes
-consumo_base = litros_dia / 86400  # ≈ 0.0058 L/s
+lts_totales = lts_dia * habitantes  # 500 L/día
 
-# Asignar demandas y patrones
-for i in range(1, 51):
-    nodo_id = f'J{i}'
-    nodo = wn.get_node(nodo_id)
+# Asignar base_value y pattern al objeto existente
+for nombre, j in wn.junctions():
+    if 'J' in nombre:
+        variacion = np.random.uniform(0.8, 1.2)
+        base = float(round((lts_totales / 86400) * variacion, 5))  # L/s
+        j.demand_timeseries_list[0].base_value = base
+        j.demand_timeseries_list[0].pattern_name = nombre_patron  # ✅ nombre como string
 
-    # Variación individual de demanda
-    variacion = np.random.uniform(0.85, 1.15)
-    demanda = round(consumo_base * variacion, 6)
-
-    # Crear patrón individual con ligeras variaciones horarias
-    patron_ind = [round(v * np.random.uniform(0.9, 1.1), 3) for v in patron_base]
-    patron_nombre = f'patron_{nodo_id}'
-    wn.add_pattern(patron_nombre, patron_ind)
-
-    # Eliminar cualquier demanda anterior
-    nodo.demand_timeseries_list.clear()
-
-    # ✅ Agregar demanda con patrón directamente
-    nodo.add_demand(demanda, patron_nombre)
-
-# Guardar archivo final
-write_inpfile(wn, "epanet_sim/modelos/red_apr_estructurada_patrones.inp")
-print("✅ Archivo .inp generado correctamente con patrones y demandas individuales.")
+# Guardar archivo generado
+write_inpfile(wn, 'epanet_sim/modelos/red_apr_estructurada_patrones.inp')
+print("✅ ¡Modelo con demandas y patrón horario creado con éxito!")
 
